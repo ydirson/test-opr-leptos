@@ -166,16 +166,21 @@ fn App() -> impl IntoView {
             </thaw::LayoutHeader>
             <thaw::Flex class="app-contents" justify=thaw::FlexJustify::Center
                         style="flex: 1">
+                { move || log!("in Flex") }
                 <Show when=move || { army_ids.with(Result::is_ok) }
                       fallback=move || view! {
+                          { move || log!("outer default") }
                           <SelectView alert_type={thaw::MessageBarIntent::Warning}
                                       message=army_ids.get().err().unwrap() />
                       } >
+                    { move || log!("in outer Show") }
                     <Show when=move || { ! army_ids.get().unwrap().is_empty() }
                           fallback=|| view! {
+                              { move || log!("inner default: army_ids is empty") }
                               <SelectView alert_type={thaw::MessageBarIntent::Info}
                                           message="no army selected".to_string() />
                           } >
+                        { move || log!("in inner Show army_ids={:?}", army_ids.get()) }
                         <ArmiesView army_ids=Signal::derive(move || army_ids.get().unwrap().clone()) />
                     </Show>
                 </Show>
@@ -189,6 +194,7 @@ fn SelectView(message: String, alert_type: thaw::MessageBarIntent) -> impl IntoV
     // reset global game_system so a different can be enabled by new armies
     let app_game_system = expect_context::<RwSignal<Option<opr::GameSystem>>>();
     app_game_system.set(None);
+    log!("SelectView, app_game_system now {:?}", app_game_system.get());
 
     view! {
         <Title text="select armies"/>
@@ -247,6 +253,7 @@ fn SampleMatchups() -> impl IntoView {
 /// drawers for selections
 #[component]
 fn ArmiesView(army_ids: Signal<Vec<String>>) -> impl IntoView {
+    log!("in ArmiesView");
     let dialog_shown = RwSignal::new(false);
     provide_context(army_ids);
     view! {
@@ -344,6 +351,7 @@ impl Default for DrawerControl {
 /// can share a common context
 #[component]
 fn ArmyContainer(army: Army, side: thaw::DrawerPosition) -> impl IntoView {
+    log!("in ArmyContainer");
     // the `shown` status can be changed by eg. selecting in the army
     // list, or using close button in the drawer itself
     let drawer_control = DrawerControl::default();
@@ -355,6 +363,7 @@ fn ArmyContainer(army: Army, side: thaw::DrawerPosition) -> impl IntoView {
     view! {
         <leptos::context::Provider value=drawer_control >
             <DetailsDrawer side army=army.clone() />
+            { move || log!("in ArmyContainer/Provider") }
             <ArmyList army />
         </leptos::context::Provider>
     }
@@ -364,6 +373,7 @@ fn ArmyContainer(army: Army, side: thaw::DrawerPosition) -> impl IntoView {
 fn ArmyList(army: Army,
 ) -> impl IntoView {
     let app_game_system = expect_context::<RwSignal<Option<opr::GameSystem>>>();
+    log!("ArmyList, app_game_system is {:?}", app_game_system.get());
     view! {
         <thaw::Flex class="army_list" vertical={true} >
         { move || {
@@ -407,10 +417,13 @@ fn ArmyList(army: Army,
                                     // not yet set: set it, ok
                                     None => {
                                         app_game_system.set(Some(game_system));
+                                        log!("ArmyList, app_game_system now {:?}", app_game_system.get());
                                         None },
                                     // already set and matching this army: ok
                                     Some(app_game_system) if game_system == app_game_system
-                                        => None,
+                                        => {
+                                            log!("ArmyList, app_game_system is conform {:?}", app_game_system);
+                                            None },
                                     // already set and not matching: KO
                                     Some(_)
                                         => Some(format!("game system mismatch: {game_system}")),
